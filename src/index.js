@@ -22,23 +22,12 @@ let MOUSE_POSITION = new THREE.Vector2(0.5, 0.5);
 let loadTextures = () => {
 	var textureLoader = new THREE.TextureLoader();
 	textures = [];
-	let p1 = new Promise((resolve, reject) => {
+	return new Promise((resolve, reject) => {
 		textureLoader.load("assets/diffuse_tile.png", texture => {
-			//texture.minFilter = THREE.NearestFilter;
-			//texture.magFilter = THREE.NearestFilter;
 			textures[0] = texture;
 			resolve();
 		});
 	});
-	let p2 = new Promise((resolve, reject) => {
-		textureLoader.load("assets/wood_diffuse.png", texture => {
-			//texture.minFilter = THREE.NearestFilter;
-			//texture.magFilter = THREE.NearestFilter;
-			textures[1] = texture;
-			resolve();
-		});
-	});
-	return Promise.all([p1, p2]);
 }
 
 let loadAssets = () => {
@@ -126,27 +115,27 @@ let init = () => {
 	// Scene
 	scene = new THREE.Scene();
 	let cubeTex = new THREE.CubeTextureLoader()
-		.setPath( 'assets/ely_mountain/' )
+		.setPath( 'assets/spacebox/' )
 		.load( [
-			'mountain_ft.png',
-			'mountain_bk.png',
-			'mountain_up.png',
-			'mountain_dn.png',
-			'mountain_rt.png',
-			'mountain_lf.png'
+			'skybox_left.png',
+			'skybox_right.png',
+			'skybox_up.png',
+			'skybox_down.png',
+			'skybox_front.png',
+			'skybox_back.png'
 		] );
 	rayCastMouse = new THREE.Vector3(0, 0, 0);
-	//scene.background = cubeTex;
+	scene.background = cubeTex;
 	camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
-	camera.position.x = 0.5*XMAX+0.5*XMIN;
-	camera.position.y = YMAX+0.66*(YMAX-YMIN);
-	camera.position.z = -15+(ZMIN+ZMAX);
+	camera.position.x = (XMIN+XMAX) - 50;
+	camera.position.y = YMAX+2*(YMAX-YMIN);
+	camera.position.z = (ZMIN+ZMAX) - 50;
 	camera.lookAt(new THREE.Vector3(0.5*(XMIN+XMAX), YMIN*0.5+YMAX*0.5, 0.5*(ZMIN+ZMAX)));
 	renderer = new THREE.WebGLRenderer();
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	document.getElementById("three").appendChild( renderer.domElement );
-	//controls = new THREE.OrbitControls(camera, renderer.domElement);
-	//controls.target.set(0.5*(XMIN+XMAX), YMIN*0.5+YMAX*0.5, 0.5*(ZMIN+ZMAX));
+	controls = new THREE.OrbitControls(camera, renderer.domElement);
+	controls.target.set(0.5*(XMIN+XMAX), YMIN*0.5+YMAX*0.5, 0.5*(ZMIN+ZMAX));
 	light = new THREE.PointLight( 0xffffff, 0.25, 0, 0);
 	light.position.set( camera.position.x, camera.position.y, camera.position.z );
 	scene.add( light );
@@ -184,8 +173,6 @@ let init = () => {
 };
 
 let animate = () => {
-	requestAnimationFrame(animate);
-	// DT = Date.now() / 1000.0 - T0 - T;
 	// (Keep time delta fixed for stability)
 	T = T + DT;
 	// render simulation render target
@@ -201,7 +188,7 @@ let animate = () => {
 	srt = temp;
 	// render scene
   renderer.setRenderTarget(null);
-	//controls.update();
+	controls.update();
 	light.position.set( camera.position.x, camera.position.y, camera.position.z );
 	plane.material.uniforms.cameraPosition.value = camera.position;
 	plane.material.uniforms.simulationData.value = swapTarget.texture;
@@ -209,17 +196,25 @@ let animate = () => {
 	plane.material.uniforms.DT.value = DT;
 	renderer.render( scene, camera );
 	FRAME++;
-};
+	// limit framerate to max 60fps
+	let ms = Date.now() / 1000.0 - T0 - T;
+	let max = 17;
+	if (ms < max) {
+		setTimeout(() => {
+			requestAnimationFrame(animate);
+		}, max - ms);
+	} else {
+		requestAnimationFrame(animate);
+	}
+}
 
-loadTextures().then(() => {
-	loadAssets().then(() => {
-		init();
-		animate();
-	});
-});
-
+let reset = () => {
+	// setting frame to zero will cause data reset in shader
+	FRAME = 0;
+}
 
 document.getElementById("three").addEventListener("mousemove", event => {
+	if (rayCastMouse === undefined) return; // mouse moved before init()
 	rayCastMouse.set(
 		(event.clientX / window.innerWidth ) * 2 - 1,
 		- (event.clientY / window.innerHeight ) * 2 + 1,
@@ -242,4 +237,16 @@ document.getElementById("three").addEventListener("mousedown", event => {
 
 document.getElementById("three").addEventListener("mouseup", event => {
 	MOUSE_DOWN = 0.0;
+});
+
+document.getElementById("reset-button").addEventListener("click", event => {
+	reset();
+});
+
+
+loadTextures().then(() => {
+	loadAssets().then(() => {
+		init();
+		animate();
+	});
 });

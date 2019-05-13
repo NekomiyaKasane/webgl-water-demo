@@ -57,11 +57,10 @@
   <body>
     <div id="description">
       <b>Shallow Water Equation Demo</b><br>
-      (Click the pool)
       <button id="reset-button">Click me to reset</button>
     </div>
     </div>
-    <div id="link"><a href="https://github.com/vuoriov4/shape-matching-demo">Source code</a></div>
+    <div id="link"><a href="https://github.com/vuoriov4/webgl-water-demo">Source code</a></div>
     <script id="srtVertexShader" type="x-shader/x-vertex">
       varying vec2 texCoord;
       uniform vec2 resolution;
@@ -152,7 +151,7 @@
           color = vec3(min(YMAX, max(YMIN, H)), 0, 0);
         } else {
           float len = length(texCoord - MOUSE_POSITION);
-          float userInput = MOUSE_DOWN * (YMAX-YMIN) * exp(-256.0 * len * len);
+          float userInput = MOUSE_DOWN * 1.0 * (YMAX-YMIN) * exp(-256.0 * len * len);
           vec4 current = texture2D(simulationData, texCoord);
           vec4 right =   texture2D(simulationData, texCoord + vec2(1.0/WIDTH_SEGMENTS, 0.0));
           vec4 up =      texture2D(simulationData, texCoord + vec2(0.0, 1.0/HEIGHT_SEGMENTS));
@@ -299,10 +298,9 @@
           vec3 iPosition = vPosition + ib.distance * refractDirection;
           vec3 poolNormal = poolNormal(iPosition);
           refractColor = poolColor(poolTextureCoords(iPosition)) * light(poolNormal, iPosition);
-          //refractColor = poolColor(poolTextureCoords(iPosition)) * light(poolNormal, iPosition);
         } else {
-          refractColor = vec3(1,0,0); // debug
-          // refractColor = textureCube(cubeTexture, refractDirection).xyz;
+          // ray should always hit
+          refractColor = vec3(1,0,0);
         }
         // reflection
         vec3 reflectDirection = normalize(vPosition - cameraPosition);
@@ -312,7 +310,7 @@
         if (ib.hit) {
           vec3 iPosition = vPosition - ib.distance * reflectDirection;
           if (iPosition.y >= YMAX - EPSILON) {
-            reflectionColor = vec3(0.0);//1.0*textureCube(cubeTexture, vec3(reflectDirection.x, reflectDirection.y, reflectDirection.z)).xyz;
+            reflectionColor = textureCube(cubeTexture, vec3(reflectDirection.x, reflectDirection.y, reflectDirection.z)).xyz;
           } else {
             vec3 poolNormal = poolNormal(iPosition);
             reflectionColor = poolColor(poolTextureCoords(iPosition)) * light(poolNormal, iPosition);
