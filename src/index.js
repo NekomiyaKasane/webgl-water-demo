@@ -4,6 +4,8 @@ let OBJLoader = require('three-obj-loader'); OBJLoader(THREE);
 let OrbitControls = require('three-orbitcontrols');
 let scene, camera, renderer, light, meshes, textures, plane, controls, rayCastMouse;
 let srt, srtScene, srtCamera, srtPlane, swapTarget;
+let cameraRotation = 0.0;
+let cameraTarget = new THREE.Vector3();
 
 let XMIN = 1; 	let XMAX = 61;
 let YMIN = 0; 	let YMAX = 20;
@@ -106,14 +108,15 @@ let init = () => {
 				resolution: 		{ value: new THREE.Vector2(WIDTH_SEGMENTS + 1, HEIGHT_SEGMENTS + 1) },
 				simulationData: { type: 't', value: swapTarget.texture }
 			},
-			vertexShader: document.getElementById('srtVertexShader').textContent,
-			fragmentShader: document.getElementById('srtFragmentShader').textContent,
+			vertexShader: require('./shaders/srtVertexShader.js'),
+			fragmentShader: require('./shaders/srtFragmentShader.js')
 		})
 	);
 	srtScene.add(srtPlane);
 	srtPlane.position.z = -100;
 	// Scene
 	scene = new THREE.Scene();
+	// Sky
 	let cubeTex = new THREE.CubeTextureLoader()
 		.setPath( 'assets/spacebox/' )
 		.load( [
@@ -126,22 +129,35 @@ let init = () => {
 		] );
 	rayCastMouse = new THREE.Vector3(0, 0, 0);
 	scene.background = cubeTex;
-	camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
-	camera.position.x = (XMIN+XMAX) - 50;
-	camera.position.y = YMAX+2*(YMAX-YMIN);
-	camera.position.z = (ZMIN+ZMAX) - 50;
-	camera.lookAt(new THREE.Vector3(0.5*(XMIN+XMAX), YMIN*0.5+YMAX*0.5, 0.5*(ZMIN+ZMAX)));
+	// Renderer
 	renderer = new THREE.WebGLRenderer();
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	document.getElementById("three").appendChild( renderer.domElement );
-	controls = new THREE.OrbitControls(camera, renderer.domElement);
-	controls.target.set(0.5*(XMIN+XMAX), YMIN*0.5+YMAX*0.5, 0.5*(ZMIN+ZMAX));
+	// Camera
+	camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 1000 );
+	camera.position.x = 0.5*XMAX + 0.5*XMIN
+	camera.position.y = 3.5 *(YMAX-YMIN);
+	camera.position.z = 2.5 *(ZMAX+ZMIN);
+	cameraTarget.x = 0.5*(XMIN+XMAX);
+	cameraTarget.y = YMIN*0.5+YMAX*0.5;
+	cameraTarget.z = 0.5*ZMAX + 0.5*ZMIN;
+	camera.lookAt(cameraTarget);
+	controls = new THREE.OrbitControls( camera );
+	controls.autoRotate = true;
+	controls.autoRotateSpeed = 1.0;
+	controls.enableZoom = false;
+	controls.enablePan = false;
+	controls.enableRotate = false;
+	controls.target = cameraTarget;
+	// Lights
 	light = new THREE.PointLight( 0xffffff, 0.25, 0, 0);
 	light.position.set( camera.position.x, camera.position.y, camera.position.z );
 	scene.add( light );
 	var ambientLight = new THREE.AmbientLight( 0xffffff, 0.75 );
 	scene.add( ambientLight );
+	// Pool
 	meshes.forEach(mesh => { scene.add(mesh); });
+	// Water plane
 	plane = new THREE.Mesh(
 		new THREE.PlaneGeometry(PLANE_WIDTH, PLANE_HEIGHT, WIDTH_SEGMENTS, HEIGHT_SEGMENTS)
 			.rotateX(-Math.PI/2)
@@ -164,12 +180,43 @@ let init = () => {
 				ZMIN: 					{ value: ZMIN },
 				ZMAX: 					{ value: ZMAX }
 			},
-			vertexShader: document.getElementById( 'waterVertexShader' ).textContent,
-			fragmentShader: document.getElementById( 'waterFragmentShader' ).textContent
+			vertexShader: require('./shaders/waterVertexShader.js'),
+			fragmentShader: require('./shaders/waterFragmentShader.js')
 		})
 	);
 	scene.add(plane);
-
+	// Floor plane
+	let floorMaterial = new THREE.ShaderMaterial({
+		vertexShader: require('./shaders/floorVertexShader.js'),
+		fragmentShader: require('./shaders/floorFragmentShader.js')
+	});
+	let planeWidth = 1000;
+	let plane1 = new THREE.Mesh(new THREE.PlaneGeometry(planeWidth, ZMAX - ZMIN, 1, 1), floorMaterial);
+	plane1.position.x = XMAX + planeWidth/2;
+	plane1.position.y = YMAX;
+	plane1.position.z = ZMIN*0.5 + ZMAX*0.5;
+	plane1.rotation.x = -Math.PI/2;
+	//scene.add(plane1);
+	let plane2 = new THREE.Mesh(new THREE.PlaneGeometry(planeWidth, ZMAX - ZMIN, 1, 1), floorMaterial);
+	plane2.position.x = XMIN - planeWidth/2;
+	plane2.position.y = YMAX;
+	plane2.position.z = ZMIN*0.5 + ZMAX*0.5;
+	plane2.rotation.x = -Math.PI/2;
+	//scene.add(plane2);
+	let plane3 = new THREE.Mesh(new THREE.PlaneGeometry(planeWidth, 2 * planeWidth + XMAX - XMIN, 1, 1), floorMaterial);
+	plane3.position.x = XMIN * 0.5 + XMAX * 0.5;
+	plane3.position.y = YMAX;
+	plane3.position.z = ZMAX + planeWidth/2;
+	plane3.rotation.x = -Math.PI/2;
+	plane3.rotation.z = Math.PI/2;
+	//scene.add(plane3);
+	let plane4 = new THREE.Mesh(new THREE.PlaneGeometry(planeWidth, 2 * planeWidth + XMAX - XMIN, 1, 1), floorMaterial);
+	plane4.position.x = XMIN * 0.5 + XMAX * 0.5;
+	plane4.position.y = YMAX;
+	plane4.position.z = ZMIN - planeWidth/2;
+	plane4.rotation.x = -Math.PI/2;
+	plane4.rotation.z = Math.PI/2;
+	//scene.add(plane4);
 };
 
 let animate = () => {
@@ -186,9 +233,11 @@ let animate = () => {
 	let temp = swapTarget;
 	swapTarget = srt;
 	srt = temp;
+	cameraRotation += DT;
+	// controls
+	controls.update();
 	// render scene
   renderer.setRenderTarget(null);
-	controls.update();
 	light.position.set( camera.position.x, camera.position.y, camera.position.z );
 	plane.material.uniforms.cameraPosition.value = camera.position;
 	plane.material.uniforms.simulationData.value = swapTarget.texture;
